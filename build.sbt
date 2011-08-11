@@ -1,16 +1,12 @@
 sbtPlugin := true
 
-name := "lift-sbt"
+name := "lift-sbt-plugin"
 
 organization := "net.liftweb"
 
 //(version in Lift) := "0.0.1"
 
 version := "0.0.1"
-
-//version <<= (version, sbtVersion) { (v, sv) => 
-//  v + "_sbt" + sv
-//}
 
 scalacOptions := Seq("-deprecation", "-unchecked")
 

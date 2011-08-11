@@ -1,21 +1,75 @@
+/*
+ * Copyright 2011 WorldWide Conferencing, LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package net.liftweb.sbt
 
-import scala.xml.{NodeSeq, Text}
+import java.io.File
+import java.util.{Calendar => Cal}
 import sbt._
 import Keys._
 
-object LiftBuildPlugin extends Plugin {
-  
-  val projectOrganization       = "net.liftweb"
-  val projectVersion            = "2.4-SNAPSHOT"
-  // val projectScalaVersion       = "2.8.1"
-  val projectScalaVersion       = "2.9.0-1"
-  val projectCrossScalaVersions = Seq("2.8.0", "2.8.1", "2.9.0", "2.9.0-1")
-  
-  val projectLicense          = ("Apache License, Version 2.0", url("http://www.apache.org/licenses/LICENSE-2.0.txt"))
-  val projectHomepage         = url("http://www.liftweb.net")
-  val projectDescription      = ""
-  val projectOrganizationName = "WorldWide Conferencing, LLC"
+sealed trait LiftDefaults {
+
+  // Custom Setting keys
+  // -------------------
+  val inceptionYear = SettingKey[Option[Int]]("inception-year", "Year in which the project started.")
+
+  lazy val liftDefaultSettings: Seq[Setting[_]] = Seq(
+    name                             ~= formalize,
+    inceptionYear in GlobalScope    :== None,
+    inceptionYear                   <<= inceptionYear ?? Some(Cal.getInstance.get(Cal.YEAR)),
+    scalacOptions in GlobalScope    ++= Seq("-encoding", "UTF-8"),
+    scaladocOptions /*in GlobalScope*/ <++= (name, version) map { (n, v) =>
+       Seq("-doc-title", n, "-doc-version", v)
+    },
+    resolvers in GlobalScope       <++= version { v =>
+      if (v endsWith "-SNAPSHOT") Seq(ScalaToolsSnapshots, JavaNet2Repository) else Seq(JavaNet2Repository)
+    },
+    shellPrompt in GlobalScope       := { state => "sbt:%s> ".format(Project.extract(state).currentProject.id) }
+  )
+
+  def formalize(name: String) = name.split("-") map(_.capitalize) mkString(" ")
+
+  def selectDynamic(default: String, alternatives: (String, String)*)(scalaVersion: String) =
+    Map(alternatives: _*).getOrElse(scalaVersion, default)
+
+}
+
+object LiftAppPlugin extends Plugin with LiftDefaults {
+
+  lazy val liftAppSettings = liftDefaultSettings ++ Seq(
+
+  )
+}
+
+object LiftBuildPlugin extends Plugin with LiftDefaults {
+
+  // Project Information
+  // -------------------
+  object ProjectInfo {
+    val Organization       = "net.liftweb"
+    val Version            = "2.4-SNAPSHOT"
+    val CrossScalaVersions = Seq("2.9.0-1", "2.9.0", "2.8.1", "2.8.0")
+
+    val License          = ("Apache License, Version 2.0", url("http://www.apache.org/licenses/LICENSE-2.0.txt"))
+    val Homepage         = url("http://www.liftweb.net")
+    // val Description      = ""
+    val OrganizationName = "WorldWide Conferencing, LLC"
+    val InceptionYear    = 2006
+  }
 
   // Repositories
   // ------------
@@ -28,93 +82,90 @@ object LiftBuildPlugin extends Plugin {
       "Nexus Repository for " + status.capitalize at "http://nexus.scala-tools.org/content/repositories/" + status
   }
 
+  // Credential Sources
+  // ------------------
+  object CredentialSources {
+    lazy val Default = Path.userHome / ".ivy2" / ".scalatools.credentials"
+    lazy val Maven   = Path.userHome / ".m2" / "settings.xml"
+  }
 
-  lazy val liftBuildSettings = Seq(
+  import ProjectInfo._
+  lazy val liftBuildSettings = liftDefaultSettings ++ Seq(
 
-    // Library coordinates
-    name         ~= formalize,
-    organization := projectOrganization,
-    version      := projectVersion,
-    scalaVersion := projectScalaVersion,
-    // crossScalaVersions := projectCrossScalaVersions,
+    organization        := Organization,
+    version             := Version,
+    crossScalaVersions  := CrossScalaVersions,
 
-////////
-    // projectID <<= projectID { _.extra("e:color" -> "red") },
-////////
+    licenses in GlobalScope         += License,
+    homepage in GlobalScope         := Some(Homepage),
+    organizationName in GlobalScope := OrganizationName,
+    inceptionYear in GlobalScope    := Some(InceptionYear),
 
-    description ~= { d =>
-      if (!projectDescription.isEmpty) else d 
-    },
-    homepage    := Some(projectHomepage),
-    licenses    += projectLicense,
-    // description <<= description or name.identity, // Up there
-    // description <<= name apply idFun, // Up there
+    scalacOptions in GlobalScope ++= Seq("-unchecked"), // Also should enable "-Xcheckinit", -Xwarninit" when things get in good order
 
-    organizationName := Some(projectOrganizationName),
+    // In case you want ~/.m2/repository to add to the resolver list
+    // Note that you should not do a simple `resolvers += Resolver.mavenLocal`
+    // because ~/.m2/repository needs to be looked up ahead of other resolvers.
+    // resolvers in GlobalScope ~= { Resolver.mavenLocal +: _ },
 
-    scalacOptions ++= Seq("-encoding", "UTF-8", /*"-deprecation", */"-unchecked"),
-
-    resolvers <++= version { v =>
-      /*Resolver.mavenLocal ::*/ JavaNet2Repository :: (if (v endsWith "-SNAPSHOT") ScalaToolsSnapshots :: Nil else Nil)
-    },
-
-    publishTo <<= version { v =>
+    // Also see: https://github.com/indrajitr/xsbt/commit/6ab0f39a5ac5fba06192f32ee988c635612ba4e3#commitcomment-518281
+    publishTo in GlobalScope <<= version { v =>
       import DistributionRepositories._
       if (v endsWith "-SNAPSHOT") Some(Snapshot) else Some(Release)
-    }
+    },
 
-    // pomExtra <<= (pomExtra, name, organizationName, organizationHomepage) apply toPomExtra
+    pomExtra    <<= (pomExtra, inceptionYear) apply toPomExtra,
 
-    // ivyXML <<= (projectID, licenses, description, homepage, scalaVersion) apply toInfoXml
+    credentials <<= (credentials, streams) map addCredentials
+
   )
 
-  def formalize(name: String) = name.split("-") map(_.capitalize) mkString(" ")
+  private def toPomExtra(pomExtra: xml.NodeSeq, startYear: Option[Int]) =
+    pomExtra ++ startYear map { y => <inceptionYear>{y}</inceptionYear> }
 
-  private def toPomExtra(
-      pomExtra: NodeSeq,
-      name: String,
-      orgName: String,
-      orgHomepage: Option[URL]) = {
-    pomExtra ++
-    <name>{name}</name>
-    <organization>
-      <name>{orgName}</name>
-      { orgHomepage map { h => <url>{h}</url> } getOrElse NodeSeq.Empty }
-    </organization>
-  }
-
-  private def toInfoXml(
-      project:      ModuleID,
-      licenses:     Seq[(String, URL)], 
-      description:  String,
-      homepage:     Option[URL],
-      scalaVersion: String) = {
-
-    val moduleAttr = if(project.crossVersion) project.name + "_" + scalaVersion else project.name
-
-    def makeLicensesXml(licenses: Seq[(String, URL)]) =
-      licenses map { l => <license name={l._1} url={l._2.toString} /> }
-
-    def makeDescriptionXml(description: String, homepage: Option[URL]) =
-      <description homepage={homepage map (h => Text(h.toString))}>{description}</description>
-
-    // def makeDescriptionXml(description: Option[String], homepage: Option[URL]) =
-    //   (for {
-    //     d <- description if !d.trim.isEmpty
-    //     dxml = <description homepage={homepage map (h => Text(h.toString))}>{d}</description>
-    //   } yield dxml) getOrElse NodeSeq.Empty
-
-    <info organisation={project.organization} module={moduleAttr} revision={project.revision}>
-      { makeLicensesXml(licenses) }
-      { makeDescriptionXml(description, homepage) }
-    </info>
-  }
-
-  // See: https://github.com/harrah/xsbt/wiki/Global-Settings
-  override def settings = Seq(
-    shellPrompt := { state =>
-      "sbt (%s)> ".format(Project.extract(state).currentProject.id)
+  private def addCredentials(credentials: Seq[Credentials], streams: TaskStreams) = {
+    import CredentialSources.{Default => sbt, Maven => mvn}
+    import streams.{log => l}
+    // FIXME: this isn't optimally idiomatic :(
+    (sbt, mvn) match {
+      case (s, _) if s.exists => credentials :+ Credentials(s)
+      case (_, m) if m.exists => credentials ++ MavenCredentials(m, l)
+      case _                  => {
+        l.warn("Neither of the files %s or %s available to load server credentials from.".format(sbt, mvn))
+        credentials
+      }
     }
-  )
+  }
+
+  object MavenCredentials {
+    val nexusRealm = "Sonatype Nexus Repository Manager"
+
+    def apply(file: File, log: Logger): Seq[Credentials] = {
+      val tuples = loadMavenCredentials(file) match {
+        case Left(err)   => log.warn(err); Nil
+        case Right(info) => info
+      }
+      tuples map { t =>
+        // settings.xml doesn't keep auth realm but SBT expects one,
+        // do a wild guess about the service by looking at the hostname
+        // and blindly default to something that just about works
+        if (t._1.contains("nexus")) Credentials(nexusRealm, t._1, t._2, t._3)
+        else Credentials("Unknown", t._1, t._2, t._3)
+      }
+    }
+
+    def loadMavenCredentials(file: File): Either[String, Seq[(String, String, String)]] = {
+      if (file.exists) {
+        try {
+          val creds = xml.XML.loadFile(file) \ "servers" \ "server" map { s =>
+            (s \ "id" text, s \ "username" text, s \ "password" text)
+          }
+          Either.cond(!creds.isEmpty, creds, "No server credential found in Maven settings file " + file)
+        } catch {
+          case e => Left("Could not read the settings file %s [%s]".format(file, e.getMessage))
+        }
+      } else Left("Maven settings file " + file + " does not exist")
+    }
+  }
 
 }
