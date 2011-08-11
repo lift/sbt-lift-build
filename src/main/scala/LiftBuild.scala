@@ -26,15 +26,33 @@ sealed trait LiftDefaults {
   // Custom Setting keys
   // -------------------
   val inceptionYear = SettingKey[Option[Int]]("inception-year", "Year in which the project started.")
+  // Backport from 0.10.2
+  lazy val JavaNet2Repository = "java.net Maven2 Repository" at "http://download.java.net/maven/2"
+  lazy val description = SettingKey[String]("description", "Project description.")
+  lazy val homepage = SettingKey[Option[URL]]("homepage", "Project homepage.")
+  lazy val licenses = SettingKey[Seq[(String, URL)]]("licenses", "Project licenses as (name, url) pairs.")
+  lazy val organization = SettingKey[String]("organization", "Organization/group ID.")
+  lazy val organizationName = SettingKey[String]("organization-name", "Organization full/formal name.")
+  lazy val organizationHomepage = SettingKey[Option[URL]]("organization-homepage", "Organization homepage.")
+  // End backport
 
   lazy val liftDefaultSettings: Seq[Setting[_]] = Seq(
+    // Backport from 0.10.2
+    description <<= description or name.identity,
+    homepage in GlobalScope :== None,
+    licenses in GlobalScope :== Nil,
+    organization <<= organization or normalizedName.identity,
+    organizationName in GlobalScope <<= organizationName or organization.identity,
+    organizationHomepage in GlobalScope <<= organizationHomepage or homepage.identity,
+    // End backport
     name                             ~= formalize,
     inceptionYear in GlobalScope    :== None,
     inceptionYear                   <<= inceptionYear ?? Some(Cal.getInstance.get(Cal.YEAR)),
     scalacOptions in GlobalScope    ++= Seq("-encoding", "UTF-8"),
-    scaladocOptions /*in GlobalScope*/ <++= (name, version) map { (n, v) =>
-       Seq("-doc-title", n, "-doc-version", v)
-    },
+    // FIXME: Enable after 0.10.2 (See: https://github.com/harrah/xsbt/issues/147)
+    // scaladocOptions /*in GlobalScope*/ <++= (name, version) map { (n, v) =>
+    //    Seq("-doc-title", n, "-doc-version", v)
+    // },
     resolvers in GlobalScope       <++= version { v =>
       if (v endsWith "-SNAPSHOT") Seq(ScalaToolsSnapshots, JavaNet2Repository) else Seq(JavaNet2Repository)
     },
