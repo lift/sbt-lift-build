@@ -1,17 +1,19 @@
 sbtPlugin := true
 
-name := "lift-sbt-plugin"
-
 organization := "net.liftweb"
+
+name := "lift-sbt-plugin"
 
 //(version in Lift) := "0.0.1"
 
 version := "0.0.1"
 
-scalacOptions := Seq("-deprecation", "-unchecked")
+licenses += ("Apache License, Version 2.0", url("http://www.apache.org/licenses/LICENSE-2.0.txt"))
 
-publishTo <<= (version) { version: String =>
-  val snapshot = "Nexus Repository for Snapshots" at "http://nexus.scala-tools.org/content/repositories/snapshots/"
-  val release  = "Nexus Repository for Releases"  at "http://nexus.scala-tools.org/content/repositories/releases/"
-  if (version endsWith "-SNAPSHOT") Some(snapshot) else Some(release)
-}
+scalacOptions                    ++= DefaultOptions.scalac,
+
+scalacOptions in compile          += Opts.compile.deprecation,
+
+publishArtifact in (Compile, packageDoc) := false
+
+publishArtifact in (Compile, packageSrc) := false

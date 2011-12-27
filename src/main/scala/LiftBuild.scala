@@ -16,29 +16,32 @@
 
 package net.liftweb.sbt
 
-import java.io.File
-import java.util.{Calendar => Cal}
 import sbt._
 import Keys._
 
 sealed trait LiftDefaults {
-  
-  lazy val encodingOptions = Seq("-encoding", "UTF-8")
 
   lazy val liftDefaultSettings: Seq[Setting[_]] = Seq(
-    name                          ~= formalize,
-    // resolvers in GlobalScope      ~= (Resolver.mavenLocal +: _),
-    resolvers in GlobalScope      += JavaNet2Repository,
-    resolvers                   <++= isSnapshot { s => if (s) Seq(ScalaToolsSnapshots) else Nil },
+    name ~= formalize,
 
-    javacOptions in GlobalScope  ++= encodingOptions,
-    scalacOptions in GlobalScope ++= encodingOptions,
-    scaladocOptions             <++= (name, version) map(Seq("-doc-title", _, "-doc-version", _) ++ encodingOptions),
+    javacOptions                    ++= DefaultOptions.javac,
+    javacOptions in compile          += Opts.compile.deprecation,
+    javacOptions in (Compile, doc) <++= (name in (Compile, doc), version in (Compile, doc)) apply javadoc,
 
-    shellPrompt in GlobalScope    := { state => "sbt:%s> ".format(Project.extract(state).currentProject.id) }
+    scalacOptions                    ++= DefaultOptions.scalac,
+    scalacOptions in compile          += Opts.compile.deprecation,
+    scalacOptions in (Compile, doc) <++= (name in (Compile, doc), version in (Compile, doc)) map DefaultOptions.scaladoc,
+
+    resolvers <++= isSnapshot { s => if (s) Seq(ScalaToolsSnapshots) else Nil },
+
+    shellPrompt <<= (state, version)((s, v) => { s => "sbt:%s:%s> ".format(Project.extract(s).currentProject.id, v) }),
+    initialCommands in console := "import netliftweb._;",
   )
 
   def formalize(name: String) = name.split("-") map(_.capitalize) mkString(" ")
+
+  // TODO: "Use `DefaultOptions.javadoc` instead" and consider javacOptions as task (like scalacOptions)
+  def javadoc(name: String, version: String): Seq[String] = Seq("-doctitle", "%s %s API".format(name, version))
 
   def selectDynamic(default: String, alternatives: (String, String)*)(scalaVersion: String) =
     Map(alternatives: _*).getOrElse(scalaVersion, default)
@@ -48,40 +51,25 @@ sealed trait LiftDefaults {
 object LiftAppPlugin extends Plugin with LiftDefaults {
 
   lazy val liftAppSettings = liftDefaultSettings ++ Seq(
-
+    // startYear
+    // initialCommands in console += """import netliftweb._
+    //                                 |import common._
+    //                                 |import json._""".stripMargin
   )
 }
 
 object LiftBuildPlugin extends Plugin with LiftDefaults {
 
-  // Project Information
-  // -------------------
-  object ProjectInfo {
-    val Organization       = "net.liftweb"
-    // Fixme, this should go in respective projects (framework, modules etc.)
-    val Version            = "2.4-SNAPSHOT"
-    // Fixme, this should go in respective projects (framework, modules etc.)
-    val CrossScalaVersions = Seq("2.9.0-1", "2.9.0", "2.8.1", "2.8.0")
-
-    val License          = ("Apache License, Version 2.0", url("http://www.apache.org/licenses/LICENSE-2.0.txt"))
-    val Homepage         = url("http://www.liftweb.net")
-    // val Description      = ""
-    val OrganizationName = "WorldWide Conferencing, LLC"
-    val StartYear        = 2006
-  }
-
-  import ProjectInfo._
   lazy val liftBuildSettings = liftDefaultSettings ++ Seq(
+    organization     := "net.liftweb",
+    licenses         += ("Apache License, Version & 2.0", url("http://www.apache.org/licenses/LICENSE-2.0.txt")),
+    homepage         := Some(url("http://www.liftweb.net")),
+    organizationName := "WorldWide Conferencing, LLC",
+    startYear        := Some(2006),
 
-    organization        := Organization,
-    version             := Version,
-    crossScalaVersions  := CrossScalaVersions,
+    scalacOptions ++= Seq(/*"-unchecked"*/), // TODO: Pull up to LiftDefaults. Also should enable "-Xcheckinit", -Xwarninit" (in LiftBuildPlugin only) when things get in good order
 
-    licenses in ThisBuild         += License,
-    homepage in ThisBuild         := Some(Homepage),
-    organizationName in ThisBuild := OrganizationName,
-    startYear in ThisBuild        := Some(StartYear),
-
-    scalacOptions in ThisBuild ++= Seq("-unchecked") // Also should enable "-Xcheckinit", -Xwarninit" when things get in good order
+    pomIncludeRepository := { _ => false },
+    credentials          += Credentials(Path.userHome / ".sbt" / ".credentials")
   )
 }
