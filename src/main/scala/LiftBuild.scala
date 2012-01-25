@@ -38,7 +38,7 @@ sealed trait LiftDefaults {
     resolvers <++= isSnapshot { s => if (s) Seq(SonatypeSnapshots) else Nil },
 
     shellPrompt <<= (state, version)((s, v) => { s => "sbt:%s:%s> ".format(Project.extract(s).currentProject.id, v) }),
-    initialCommands in console := "import netliftweb._;",
+    initialCommands in console := "import net.liftweb._;"
   )
 
   def formalize(name: String) = name.split("-") map(_.capitalize) mkString(" ")
@@ -53,9 +53,10 @@ sealed trait LiftDefaults {
 
 object LiftAppPlugin extends Plugin with LiftDefaults {
 
+  import java.util.{Calendar => Cal}
   lazy val liftAppSettings = liftDefaultSettings ++ Seq(
-    // startYear
-    // initialCommands in console += """import netliftweb._
+    startYear := Some(Cal.getInstance.get(Cal.YEAR))
+    // initialCommands in console += """import net.liftweb._
     //                                 |import common._
     //                                 |import json._""".stripMargin
   )
