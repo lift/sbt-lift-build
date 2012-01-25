@@ -21,6 +21,9 @@ import Keys._
 
 sealed trait LiftDefaults {
 
+  val SonatypeSnapshots = "Sonatype Nexus Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/"
+  val SonatypeStaging   = "Sonatype Nexus Staging" at "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+
   lazy val liftDefaultSettings: Seq[Setting[_]] = Seq(
     name ~= formalize,
 
@@ -32,7 +35,7 @@ sealed trait LiftDefaults {
     scalacOptions in compile          += Opts.compile.deprecation,
     scalacOptions in (Compile, doc) <++= (name in (Compile, doc), version in (Compile, doc)) map DefaultOptions.scaladoc,
 
-    resolvers <++= isSnapshot { s => if (s) Seq(ScalaToolsSnapshots) else Nil },
+    resolvers <++= isSnapshot { s => if (s) Seq(SonatypeSnapshots) else Nil },
 
     shellPrompt <<= (state, version)((s, v) => { s => "sbt:%s:%s> ".format(Project.extract(s).currentProject.id, v) }),
     initialCommands in console := "import netliftweb._;",
@@ -70,6 +73,7 @@ object LiftBuildPlugin extends Plugin with LiftDefaults {
     scalacOptions ++= Seq(/*"-unchecked"*/), // TODO: Pull up to LiftDefaults. Also should enable "-Xcheckinit", -Xwarninit" (in LiftBuildPlugin only) when things get in good order
 
     pomIncludeRepository := { _ => false },
+    publishTo           <<= isSnapshot { s => Some(if (s) SonatypeSnapshots else SonatypeStaging) },
     credentials          += Credentials(Path.userHome / ".sbt" / ".credentials")
   )
 }
