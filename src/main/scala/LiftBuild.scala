@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 WorldWide Conferencing, LLC
+ * Copyright 2011-2012 WorldWide Conferencing, LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,60 +21,52 @@ import Keys._
 
 sealed trait LiftDefaults {
 
-  val SonatypeSnapshots = "Sonatype Nexus Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/"
-  val SonatypeStaging   = "Sonatype Nexus Staging" at "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+  object PublishRepo {
+    lazy val Local    = Resolver.file("Local Repository", Path.userHome / ".m2" / "repository" asFile)
+    lazy val Snapshot = "Sonatype Nexus Repository for Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/"
+    lazy val Staging  = "Sonatype Nexus Repository for Staging" at "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+  }
 
-  lazy val liftDefaultSettings: Seq[Setting[_]] = Seq(
-    name ~= formalize,
+  lazy val SnapshotResolver = "Sonatype Repository for Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/"
 
-    javacOptions                    ++= DefaultOptions.javac,
-    javacOptions in compile          += Opts.compile.deprecation,
-    javacOptions in (Compile, doc) <++= (name in (Compile, doc), version in (Compile, doc)) apply javadoc,
-
-    scalacOptions                    ++= DefaultOptions.scalac,
-    scalacOptions in compile          += Opts.compile.deprecation,
-    scalacOptions in (Compile, doc) <++= (name in (Compile, doc), version in (Compile, doc)) map DefaultOptions.scaladoc,
-
-    resolvers <++= isSnapshot { s => if (s) Seq(SonatypeSnapshots) else Nil },
-
-    shellPrompt <<= (state, version)((s, v) => { s => "sbt:%s:%s> ".format(Project.extract(s).currentProject.id, v) }),
+  lazy val baseSettings: Seq[Setting[_]] = Seq(
+    name           ~= formalize,
+    javacOptions  ++= DefaultOptions.javac,
+    scalacOptions ++= DefaultOptions.scalac,
+    packageOptions += Package.ManifestAttributes("Built-By"   -> System.getProperty("user.name", "unknown"),
+                                                 "Built-Time" -> java.util.Calendar.getInstance.getTimeInMillis.toString),
+    resolvers     <<= isSnapshot(if (_) Seq(SnapshotResolver) else Nil),
+    shellPrompt   <<= version(v => s => "%s:%s:%s> ".format(s.configuration.provider.id.name, Project.extract(s).currentProject.id, v)),
+    // DefaultOptions.setupShellPrompt, // TODO: use this instead with 0.12.0-M2
     initialCommands in console := "import net.liftweb._;"
   )
 
-  def formalize(name: String) = name.split("-") map(_.capitalize) mkString(" ")
+  lazy val compileSettings: Seq[Setting[_]] = inTask(compile)(Seq(
+    javacOptions   += Opts.compile.deprecation, // TODO: consider ("-source", "6", "-target", "6")
+    scalacOptions ++= Seq(Opts.compile.deprecation, Opts.compile.unchecked, "-Xcheckinit")
+  ))
 
-  // TODO: "Use `DefaultOptions.javadoc` instead" and consider javacOptions as task (like scalacOptions)
-  def javadoc(name: String, version: String): Seq[String] = Seq("-doctitle", "%s %s API".format(name, version))
+  lazy val docSettings: Seq[Setting[_]] = inTask(doc)(Seq(
+    javacOptions  <++= (name, version) map DefaultOptions.javadoc,
+    scalacOptions <++= (name, version) map DefaultOptions.scaladoc
+  ))
 
-  def selectDynamic(default: String, alternatives: (String, String)*)(scalaVersion: String) =
-    Map(alternatives: _*).getOrElse(scalaVersion, default)
+  lazy val liftDefaultSettings: Seq[Setting[_]] =
+    baseSettings ++ Seq(Compile, Test, IntegrationTest).flatMap(inConfig(_)(compileSettings ++ docSettings))
 
-}
+  def formalize(name: String): String = name.split("-") map (_.capitalize) mkString (" ")
 
-object LiftAppPlugin extends Plugin with LiftDefaults {
+  // Helper for Aggregated doc
+  def aggregatedSetting[T](taskKey: TaskKey[Seq[T]]): Setting[_] =
+    taskKey <<= Defaults.inDependencies[Task[Seq[T]]](taskKey.task, _ => task(Nil), aggregate = true) apply { _.join.map(_.flatten) }
 
-  import java.util.{Calendar => Cal}
-  lazy val liftAppSettings = liftDefaultSettings ++ Seq(
-    startYear := Some(Cal.getInstance.get(Cal.YEAR))
-    // initialCommands in console += """import net.liftweb._
-    //                                 |import common._
-    //                                 |import json._""".stripMargin
-  )
+  def crossMapped(mappings: (String, String)*): CrossVersion =
+    CrossVersion.binaryMapped(Map(mappings: _*) orElse { case v => v })
+
+  def defaultOrMapped(default: String, alternatives: (String, String)*): String => String =
+    Map(alternatives: _*) orElse { case _ => default }
 }
 
 object LiftBuildPlugin extends Plugin with LiftDefaults {
-
-  lazy val liftBuildSettings = liftDefaultSettings ++ Seq(
-    organization     := "net.liftweb",
-    licenses         += ("Apache License, Version & 2.0", url("http://www.apache.org/licenses/LICENSE-2.0.txt")),
-    homepage         := Some(url("http://www.liftweb.net")),
-    organizationName := "WorldWide Conferencing, LLC",
-    startYear        := Some(2006),
-
-    scalacOptions ++= Seq(/*"-unchecked"*/), // TODO: Pull up to LiftDefaults. Also should enable "-Xcheckinit", -Xwarninit" (in LiftBuildPlugin only) when things get in good order
-
-    pomIncludeRepository := { _ => false },
-    publishTo           <<= isSnapshot { s => Some(if (s) SonatypeSnapshots else SonatypeStaging) },
-    credentials          += Credentials(Path.userHome / ".sbt" / ".credentials")
-  )
+  lazy val liftBuildSettings = liftDefaultSettings
 }
