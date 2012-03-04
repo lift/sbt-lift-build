@@ -32,7 +32,7 @@ sealed trait LiftDefaults {
   lazy val baseSettings: Seq[Setting[_]] = Seq(
     name           ~= formalize,
     javacOptions  ++= DefaultOptions.javac,
-    scalacOptions ++= DefaultOptions.scalac,
+    scalacOptions ++= DefaultOptions.scalac :+ Opts.compile.deprecation :+ Opts.compile.unchecked,
     packageOptions += Package.ManifestAttributes("Built-By"   -> System.getProperty("user.name", "unknown"),
                                                  "Built-Time" -> java.util.Calendar.getInstance.getTimeInMillis.toString),
     resolvers     <<= isSnapshot(if (_) Seq(SnapshotResolver) else Nil),
@@ -42,8 +42,8 @@ sealed trait LiftDefaults {
   )
 
   lazy val compileSettings: Seq[Setting[_]] = inTask(compile)(Seq(
-    javacOptions   += Opts.compile.deprecation, // TODO: consider ("-source", "6", "-target", "6")
-    scalacOptions ++= Seq(Opts.compile.deprecation, Opts.compile.unchecked, "-Xcheckinit")
+    javacOptions  += Opts.compile.deprecation, // TODO: consider ("-source", "6", "-target", "6")
+    scalacOptions += "-Xcheckinit"
   ))
 
   lazy val docSettings: Seq[Setting[_]] = inTask(doc)(Seq(
