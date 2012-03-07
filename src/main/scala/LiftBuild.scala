@@ -65,6 +65,24 @@ sealed trait LiftDefaults {
 
   def defaultOrMapped(default: String, alternatives: (String, String)*): String => String =
     Map(alternatives: _*) orElse { case _ => default }
+
+  def printLogo(name: String, version: String) {
+    import scala.Console.{BLUE, GREEN, RESET}
+    if (!java.lang.Boolean.getBoolean("sbt.lift.nologo")) {
+      // TODO: improve this quick hack
+      def logo(col1: String, col2: String, reset: String = RESET) =
+        """ %s
+          |   _     _  __ _
+          |  | |   (_)/ _| |_    %s %s %s
+          |  | |   | | |_| __|   %s %s %s
+          |  | |___| |  _| |_
+          |  |_____|_|_|  \__|
+          | %s
+          |""".stripMargin.format(col1, col2, name, col1, col2, version, col1, reset)
+
+      println(if (ConsoleLogger.formatEnabled) logo(BLUE, GREEN) else logo("", "", ""))
+    }
+  }
 }
 
 object LiftBuildPlugin extends Plugin with LiftDefaults {
