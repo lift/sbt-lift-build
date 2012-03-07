@@ -36,9 +36,8 @@ sealed trait LiftDefaults {
     packageOptions += Package.ManifestAttributes("Built-By"   -> System.getProperty("user.name", "unknown"),
                                                  "Built-Time" -> java.util.Calendar.getInstance.getTimeInMillis.toString),
     resolvers     <<= isSnapshot(if (_) Seq(SnapshotResolver) else Nil),
-    shellPrompt   <<= version(v => s => "%s:%s:%s> ".format(s.configuration.provider.id.name, Project.extract(s).currentProject.id, v)),
+    shellPrompt   <<= version(v => s => "%s:%s:%s> ".format(s.configuration.provider.id.name, Project.extract(s).currentProject.id, v))
     // DefaultOptions.setupShellPrompt, // TODO: use this instead with 0.12.0-M2
-    initialCommands in console := "import net.liftweb._;"
   )
 
   lazy val compileSettings: Seq[Setting[_]] = inTask(compile)(Seq(
