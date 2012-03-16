@@ -42,23 +42,14 @@ sealed trait LiftDefaults {
                          :""".stripMargin(':'), GREEN)
   }
 
-  object PublishRepo {
-    lazy val Local    = Resolver.file("Local Repository", Path.userHome / ".m2" / "repository" asFile)
-    lazy val Snapshot = "Sonatype Nexus Repository for Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/"
-    lazy val Staging  = "Sonatype Nexus Repository for Staging" at "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
-  }
-
-  lazy val SnapshotResolver = "Sonatype Repository for Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/"
-
   lazy val baseSettings: Seq[Setting[_]] = Seq(
     name           ~= formalize,
     javacOptions  ++= DefaultOptions.javac,
     scalacOptions ++= DefaultOptions.scalac :+ Opts.compile.deprecation, // :+ Opts.compile.unchecked, // FIXME: breaks tests
     packageOptions += Package.ManifestAttributes("Built-By"   -> System.getProperty("user.name", "unknown"),
                                                  "Built-Time" -> java.util.Calendar.getInstance.getTimeInMillis.toString),
-    resolvers     <<= isSnapshot(if (_) Seq(SnapshotResolver) else Nil),
-    shellPrompt   <<= version(v => s => "%s:%s:%s> ".format(s.configuration.provider.id.name, Project.extract(s).currentProject.id, v))
-    // DefaultOptions.setupShellPrompt, // TODO: use this instead with 0.12.0-M2
+    DefaultOptions.addResolvers,
+    DefaultOptions.setupShellPrompt
   )
 
   lazy val compileSettings: Seq[Setting[_]] = inTask(compile)(Seq(
