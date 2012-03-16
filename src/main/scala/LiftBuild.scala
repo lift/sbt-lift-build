@@ -16,10 +16,31 @@
 
 package net.liftweb.sbt
 
+import scala.Console.{CYAN, BLUE, GREEN, RESET}
 import sbt._
 import Keys._
 
 sealed trait LiftDefaults {
+
+  object Logo {
+    lazy val Arrow = (""": ___,__
+                         :|  / \  \
+                         :|  | |  |
+                         : \__\_\_.
+                         :""".stripMargin(':'), CYAN)
+
+    lazy val Text  = (""": _     _   __  _
+                         :| |   (_)/  _|| |_
+                         :| |__ | ||  _||  _|
+                         :|____||_||_|   \__|
+                         :""".stripMargin(':'), BLUE)
+
+    lazy val About = (""":
+                         :%s
+                         :%s
+                         :
+                         :""".stripMargin(':'), GREEN)
+  }
 
   object PublishRepo {
     lazy val Local    = Resolver.file("Local Repository", Path.userHome / ".m2" / "repository" asFile)
@@ -65,21 +86,25 @@ sealed trait LiftDefaults {
   def defaultOrMapped(default: String, alternatives: (String, String)*): String => String =
     Map(alternatives: _*) orElse { case _ => default }
 
+  // Logo printer
   def printLogo(name: String, version: String) {
-    import scala.Console.{BLUE, GREEN, RESET}
-    if (!java.lang.Boolean.getBoolean("sbt.lift.nologo")) {
-      // TODO: improve this quick hack
-      def logo(col1: String, col2: String, reset: String = RESET) =
-        """ %s
-          |   _     _  __ _
-          |  | |   (_)/ _| |_    %s %s %s
-          |  | |   | | |_| __|   %s %s %s
-          |  | |___| |  _| |_
-          |  |_____|_|_|  \__|
-          | %s
-          |""".stripMargin.format(col1, col2, name, col1, col2, version, col1, reset)
 
-      println(if (ConsoleLogger.formatEnabled) logo(BLUE, GREEN) else logo("", "", ""))
+    def colorize(buffer: String)(color: String = "", reset: String = "") = {
+      val lines = buffer.split("""\n""")
+      val width = lines.max.length
+      lines map (r => color + r + Seq.fill(width - r.length)(" ").mkString + reset)
+    }
+
+    if (!java.lang.Boolean.getBoolean("sbt.lift.nologo")) {
+      import Logo.{Arrow => arr, Text => txt, About}
+      val abt = About.copy(_1 = About._1.format(name, version))
+
+      val colorBuffer =
+        Seq(arr, txt, abt) map { l => if (ConsoleLogger.formatEnabled) colorize(l._1)(l._2, RESET) else colorize(l._1)() }
+
+      val prepBuffer = colorBuffer.reduce((x,y) => x.zipAll(y, "", "").map(_.productIterator.mkString(" ", "   ", "")))
+      println(prepBuffer.mkString("\n"))
+      println
     }
   }
 }
