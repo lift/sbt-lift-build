@@ -37,7 +37,7 @@ sealed trait LiftDefaults {
 
     lazy val About = (""":
                          :%s
-                         :%s
+                         :%s for Scala %s
                          :
                          :""".stripMargin(':'), GREEN)
   }
@@ -53,8 +53,8 @@ sealed trait LiftDefaults {
   )
 
   lazy val compileSettings: Seq[Setting[_]] = inTask(compile)(Seq(
-    javacOptions  += Opts.compile.deprecation,
-    scalacOptions += "-Xcheckinit"
+    javacOptions  += Opts.compile.deprecation
+    //scalacOptions += "-Xcheckinit"  // FIXME: breaks lift-util
   ))
 
   lazy val docSettings: Seq[Setting[_]] = inTask(doc)(Seq(
@@ -78,7 +78,7 @@ sealed trait LiftDefaults {
     Map(alternatives: _*) orElse { case _ => default }
 
   // Logo printer
-  def printLogo(name: String, version: String) {
+  def printLogo(name: String, version: String, scalaVersion: String) {
 
     def colorize(buffer: String)(color: String = "", reset: String = "") = {
       val lines = buffer.split("""\n""")
@@ -88,14 +88,13 @@ sealed trait LiftDefaults {
 
     if (!java.lang.Boolean.getBoolean("sbt.lift.nologo")) {
       import Logo.{Arrow => arr, Text => txt, About}
-      val abt = About.copy(_1 = About._1.format(name, version))
+      val abt = About.copy(_1 = About._1.format(name, version, scalaVersion))
 
       val colorBuffer =
         Seq(arr, txt, abt) map { l => if (ConsoleLogger.formatEnabled) colorize(l._1)(l._2, RESET) else colorize(l._1)() }
 
       val prepBuffer = colorBuffer.reduce((x,y) => x.zipAll(y, "", "").map(_.productIterator.mkString(" ", "   ", "")))
-      println(prepBuffer.mkString("\n"))
-      println
+      println(prepBuffer.mkString("", "\n", "\n"))
     }
   }
 }
