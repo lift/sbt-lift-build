@@ -68,13 +68,6 @@ sealed trait LiftDefaults {
 
   def formalize(name: String): String = name.split("-") map (_.capitalize) mkString (" ")
 
-  // Helper for Aggregated doc
-  def aggregatedSetting[T](taskKey: TaskKey[Seq[T]]): Setting[_] =
-    taskKey <<= Defaults.inDependencies[Task[Seq[T]]](taskKey.task, _ => task(Nil), aggregate = true) apply { _.join.map(_.flatten) }
-
-  def crossMapped(mappings: (String, String)*): CrossVersion =
-    CrossVersion.binaryMapped(Map(mappings: _*) orElse { case v => v })
-
   def defaultOrMapped(defaultValue: String, alternatives: (String, String)*): String => String =
     Map(alternatives: _*) orElse { case _ => defaultValue }
 
