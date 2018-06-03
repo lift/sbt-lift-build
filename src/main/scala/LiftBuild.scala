@@ -59,8 +59,8 @@ sealed trait LiftDefaults {
   ))
 
   lazy val docSettings: Seq[Setting[_]] = inTask(doc)(Seq(
-    javacOptions  <++= (name, version) map DefaultOptions.javadoc,
-    scalacOptions <++= (name, version) map DefaultOptions.scaladoc
+    javacOptions  ++= DefaultOptions.javadoc(name.value, version.value),
+    scalacOptions ++= DefaultOptions.scaladoc(name.value, version.value)
   ))
 
   lazy val liftDefaultSettings: Seq[Setting[_]] =
