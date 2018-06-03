@@ -18,6 +18,7 @@ package net.liftweb.sbt
 
 import scala.Console.{CYAN, BLUE, GREEN, RESET}
 import sbt._
+import sbt.internal.util.ConsoleAppender
 import Keys._
 
 sealed trait LiftDefaults {
@@ -91,7 +92,7 @@ sealed trait LiftDefaults {
       val abt = About.copy(_1 = About._1.format(name, version, scalaVersion))
 
       val colorBuffer =
-        Seq(arr, txt, abt) map { l => if (ConsoleLogger.formatEnabled) colorize(l._1)(l._2, RESET) else colorize(l._1)() }
+        Seq(arr, txt, abt) map { l => if (ConsoleAppender.formatEnabledInEnv) colorize(l._1)(l._2, RESET) else colorize(l._1)() }
 
       val prepBuffer = colorBuffer.reduce((x,y) => x.zipAll(y, "", "").map(_.productIterator.mkString(" ", "   ", "")))
       println(prepBuffer.mkString("", "\n", "\n"))
