@@ -100,6 +100,6 @@ sealed trait LiftDefaults {
   }
 }
 
-object LiftBuildPlugin extends Plugin with LiftDefaults {
-  lazy val liftBuildSettings = liftDefaultSettings
+object LiftBuildPlugin extends AutoPlugin with LiftDefaults {
+  override lazy val projectSettings = liftDefaultSettings
 }
