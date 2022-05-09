@@ -16,10 +16,12 @@
 
 package net.liftweb.sbt
 
-import scala.Console.{CYAN, BLUE, GREEN, RESET}
-import sbt._
-import sbt.internal.util.ConsoleAppender
-import Keys._
+import scala.Console.{BLUE, CYAN, GREEN, RESET}
+import sbt.*
+import internal.util.ConsoleAppender
+import Keys.*
+
+import scala.annotation.nowarn
 
 object LiftBuildPlugin extends AutoPlugin {
   object autoImport {
@@ -44,7 +46,7 @@ object LiftBuildPlugin extends AutoPlugin {
                            :""".stripMargin(':'), GREEN)
     }
 
-    lazy val baseSettings: Seq[Setting[_]] = Seq(
+    lazy val baseSettings: Seq[Setting[?]] = Seq(
       name           ~= formalize,
       javacOptions  ++= DefaultOptions.javac,
       scalacOptions ++= DefaultOptions.scalac :+ Opts.compile.deprecation, // :+ Opts.compile.unchecked, // FIXME: breaks tests
@@ -54,26 +56,26 @@ object LiftBuildPlugin extends AutoPlugin {
       DefaultOptions.setupShellPrompt
     )
 
-    lazy val compileSettings: Seq[Setting[_]] = inTask(compile)(Seq(
+    lazy val compileSettings: Seq[Setting[?]] = inTask(compile)(Seq(
       javacOptions  += Opts.compile.deprecation
       //scalacOptions += "-Xcheckinit"  // FIXME: breaks lift-util
     ))
 
-    lazy val docSettings: Seq[Setting[_]] = inTask(doc)(Seq(
+    lazy val docSettings: Seq[Setting[?]] = inTask(doc)(Seq(
       javacOptions  ++= DefaultOptions.javadoc(name.value, version.value),
       scalacOptions ++= DefaultOptions.scaladoc(name.value, version.value)
     ))
 
-    lazy val liftDefaultSettings: Seq[Setting[_]] =
+    lazy val liftDefaultSettings: Seq[Setting[?]] =
       baseSettings ++ Seq(Compile, Test, IntegrationTest).flatMap(inConfig(_)(compileSettings ++ docSettings))
 
     def formalize(name: String): String = name.split("-") map (_.capitalize) mkString (" ")
 
     def defaultOrMapped(defaultValue: String, alternatives: (String, String)*): String => String =
-      Map(alternatives: _*) orElse { case _ => defaultValue }
+      Map(alternatives*) orElse { case _ => defaultValue }
 
     // Logo printer
-    def printLogo(name: String, version: String, scalaVersion: String) {
+    def printLogo(name: String, version: String, scalaVersion: String): Unit = {
 
       def colorize(buffer: String)(color: String = "", reset: String = "") = {
         val lines = buffer.split("""\n""")
@@ -82,11 +84,15 @@ object LiftBuildPlugin extends AutoPlugin {
       }
 
       if (!java.lang.Boolean.getBoolean("sbt.lift.nologo")) {
-        import Logo.{Arrow => arr, Text => txt, About}
+        import Logo.{Arrow as arr, Text as txt, About}
+
         val abt = About.copy(_1 = About._1.format(name, version, scalaVersion))
 
+        @nowarn
+        val isAnsiSupported = ConsoleAppender.formatEnabledInEnv
+
         val colorBuffer =
-          Seq(arr, txt, abt) map { l => if (ConsoleAppender.formatEnabledInEnv) colorize(l._1)(l._2, RESET) else colorize(l._1)() }
+          Seq(arr, txt, abt) map { l => if (isAnsiSupported) colorize(l._1)(l._2, RESET) else colorize(l._1)() }
 
         val prepBuffer = colorBuffer.reduce((x,y) => x.zipAll(y, "", "").map(_.productIterator.mkString(" ", "   ", "")))
         println(prepBuffer.mkString("", "\n", "\n"))
@@ -94,5 +100,5 @@ object LiftBuildPlugin extends AutoPlugin {
     }
   }
 
-  override lazy val projectSettings = autoImport.liftDefaultSettings
+  override lazy val projectSettings: Seq[Def.Setting[?]] = autoImport.liftDefaultSettings
 }
