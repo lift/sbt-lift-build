@@ -67,7 +67,7 @@ object LiftBuildPlugin extends AutoPlugin {
     ))
 
     lazy val liftDefaultSettings: Seq[Setting[?]] =
-      baseSettings ++ Seq(Compile, Test, IntegrationTest).flatMap(inConfig(_)(compileSettings ++ docSettings))
+      baseSettings ++ Seq(Compile, Test).flatMap(inConfig(_)(compileSettings ++ docSettings))
 
     def formalize(name: String): String = name.split("-") map (_.capitalize) mkString (" ")
 
