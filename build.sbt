@@ -1,9 +1,7 @@
 sbtPlugin    := true
-
 organization := "net.liftweb"
 
 name         := "sbt-lift-build-plugin"
-
 version      := "0.0.1"
 
 licenses     += ("Apache License, Version 2.0", url("https://www.apache.org/licenses/LICENSE-2.0.txt"))
